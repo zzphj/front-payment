@@ -27,6 +27,7 @@ const useUserStore = defineStore(
                         this.token = res.token
                         this.memberId = res.memberId
                         this.resources = res.resources
+                        resolve()
                     }).catch(error => {
                         reject(error)
                     })
