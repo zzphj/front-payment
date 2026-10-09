@@ -5,7 +5,10 @@ import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
-const baseUrl = 'http://localhost:8080' // 后端接口
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -13,6 +16,8 @@ export default defineConfig({
     vue(),
     vueJsx(),
     vueDevTools(),
+    AutoImport({ resolvers: [ElementPlusResolver()] }),
+    Components({ resolvers: [ElementPlusResolver()] }),
   ],
   resolve: {
     alias: {
@@ -24,18 +29,5 @@ export default defineConfig({
     port: 8082,
     host: true,
     open: true,
-    proxy: {
-      // https://cn.vitejs.dev/config/#server-proxy
-      '/dev-api': {
-        target: baseUrl,
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/dev-api/, '')
-      },
-       // springdoc proxy
-       '^/v3/api-docs/(.*)': {
-        target: baseUrl,
-        changeOrigin: true,
-      }
-    }
   },
 })
