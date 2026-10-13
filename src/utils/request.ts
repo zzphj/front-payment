@@ -1,11 +1,10 @@
 import axios from 'axios'
-import { ElNotification, ElMessageBox, ElMessage, ElLoading } from 'element-plus'
+import { ElNotification, ElMessage, ElLoading } from 'element-plus'
 import { getToken } from '@/utils/auth'
 import errorCode from '@/utils/errorCode'
 import { tansParams, blobValidate } from '@/utils/ruoyi'
-// import cache from '@/plugins/cache'
-// import { saveAs } from 'file-saver'
-// import useUserStore from '@/store/modules/user'
+import useUserStore from '@/stores/user'
+import router from '@/router'
 
 let downloadLoadingInstance: ReturnType<typeof ElLoading.service>
 // 是否显示重新登录
@@ -22,6 +21,8 @@ const service = axios.create({
 
 // 请求拦截器
 service.interceptors.request.use((config: any) => {
+  // 页面自己处理错误时设为 true，拦截器不再弹提示
+  config.skipErrorMessage = (config.headers || {}).skipErrorMessage === true
   // 是否需要设置 token
   const isToken = (config.headers || {}).isToken === false
   // 是否需要防止数据重复提交
@@ -73,6 +74,22 @@ service.interceptors.request.use((config: any) => {
 })
 
 // 响应拦截器
+function handleUnauthorized() {
+  if (isRelogin.show) return
+  isRelogin.show = true
+  useUserStore().clearSession()
+  ElMessage.warning('登录已过期，请重新登录')
+  const current = router.currentRoute.value
+  if (current.path === '/login') {
+    isRelogin.show = false
+    return
+  }
+  const redirect = encodeURIComponent(current.fullPath || '/')
+  router.push(`/login?redirect=${redirect}`).finally(() => {
+    isRelogin.show = false
+  })
+}
+
 service.interceptors.response.use((res: any) => {
   // 未设置状态码则默认成功状态
   const code = res.data.code || 1
@@ -82,19 +99,11 @@ service.interceptors.response.use((res: any) => {
   if (res.request.responseType === 'blob' || res.request.responseType === 'arraybuffer') {
     return res.data
   }
-  if (code === 401) {
-    if (!isRelogin.show) {
-      isRelogin.show = true
-      ElMessageBox.confirm('登录状态已过期，您可以继续留在该页面，或者重新登录', '系统提示', { confirmButtonText: '重新登录', cancelButtonText: '取消', type: 'warning' }).then(() => {
-        isRelogin.show = false
-        // useUserStore().logOut().then(() => {
-        //   location.href = '/index'
-        // })
-      }).catch(() => {
-        isRelogin.show = false
-      })
-    }
+  if (code === 401 || (code === 9 && res.data?.msg === 'notLogin')) {
+    if (!res.config?.skipErrorMessage) handleUnauthorized()
     return Promise.reject('无效的会话，或者会话已过期，请重新登录。')
+  } else if (res.config?.skipErrorMessage && code !== 1) {
+    return Promise.reject(new Error(msg))
   } else if (code === 500) {
     ElMessage({ message: msg, type: 'error' })
     return Promise.reject(new Error(msg))
@@ -110,7 +119,17 @@ service.interceptors.response.use((res: any) => {
 },
   (error: any) => {
     console.log('err' + error)
-    let { message } = error
+    const status = error?.response?.status
+    const businessCode = error?.response?.data?.code
+    const businessMsg = error?.response?.data?.msg
+    if (!error?.config?.skipErrorMessage && (status === 401 || (businessCode === 9 && businessMsg === 'notLogin'))) {
+      handleUnauthorized()
+      return Promise.reject(error)
+    }
+    if (error?.config?.skipErrorMessage) {
+      return Promise.reject(error)
+    }
+    let message: string = error?.message || '系统接口异常'
     if (message == "Network Error") {
       message = "后端接口连接异常"
     } else if (message.includes("timeout")) {

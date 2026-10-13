@@ -1,37 +1,30 @@
-/** API 通用响应类型 */
 export interface AjaxResult<T = any> {
-  /** 状态码 */
   code: number
-  /** 是否成功 */
   success: boolean
-  /** 数据对象 */
   data?: T
 }
 
-/** API 表格响应类型 */
-export interface TableDataInfo<T = any> {
-  /** 状态码 */
-  code: number
-  /** 返回内容 */
-  msg: string
-  /** 总记录数 */
+export interface PageData<T> {
+  current: number
+  data: T[]
+  page: number
+  pageSize: number
+  pages: number
   total: number
-  /** 列表数据 */
-  rows: T[]
+  totalRecord: number
 }
+
+export interface PageDataResult<T> extends AjaxResult<PageData<T>> {
+  data: PageData<T>
+}
+
 
 /** 分页参数类型 */
 export interface PageDomain {
   /** 当前记录起始索引 */
-  pageNum?: number
+  page?: number
   /** 每页显示记录数 */
   pageSize?: number
-  /** 排序列 */
-  orderByColumn?: string
-  /** 排序的方向desc或者asc */
-  isAsc?: string
-  /** 分页参数合理化 */
-  reasonable?: boolean
 }
 
 /** Entity基类 */

@@ -1,19 +1,23 @@
-import type { n } from 'vue-router/dist/index-D7ja2BKs.js'
 import type { AjaxResult } from '../common'
 
-export interface LoginInfoResult extends AjaxResult {
+export interface LoginForm {
+    username: string
+    password: string
+    googleCode: string
+}
+
+export interface LoginInfoResult {
     isBindPhone: boolean
-    memberId: number
-    resources: []
-    /** 令牌 */
+    memberId: string
+    resources: string[]
     token: string
 }
 
-export interface UserInfoResult extends AjaxResult {
-    realName: string
-    memberId: number
-    tenantId: number
-    roleId: number
-    roleName: string
-    permissions: []
+export interface UserInfoResult {
+    realName?: string
+    memberId?: string
+    tenantId?: number
+    roleId?: number
+    roleName?: string
+    resources?: string[]
 }

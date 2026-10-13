@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { Bell, House, List, Setting, User, Wallet } from '@element-plus/icons-vue'
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import useUserStore from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
+const loggingOut = ref(false)
 
 const watermarkFont = {
   color: 'rgba(0, 0, 0, 0.06)',
@@ -12,6 +16,17 @@ const watermarkFont = {
 
 function onSelect(index: string) {
   if (index.startsWith('/')) router.push(index)
+}
+
+async function onCommand(command: string | number) {
+  if (command !== 'logout' || loggingOut.value) return
+  loggingOut.value = true
+  try {
+    await userStore.logOut()
+    await router.push('/login')
+  } finally {
+    loggingOut.value = false
+  }
 }
 </script>
 
@@ -32,10 +47,17 @@ function onSelect(index: string) {
             <el-icon :size="16"><Bell /></el-icon>
           </el-badge>
           <el-icon class="action" :size="16"><Setting /></el-icon>
-          <span class="action user">
-            <el-icon :size="16"><User /></el-icon>
-            admin
-          </span>
+          <el-dropdown trigger="click" @command="onCommand">
+            <span class="action user">
+              <el-icon :size="16"><User /></el-icon>
+              {{ userStore.displayName }}
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="logout" :disabled="loggingOut">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </el-header>
 
@@ -126,6 +148,7 @@ function onSelect(index: string) {
 
 .user {
   color: #303133;
+  outline: none;
 }
 
 .layout-body {

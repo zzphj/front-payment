@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import type { FormInstance, FormRules } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Lock, User } from '@element-plus/icons-vue'
 import useUserStore from '@/stores/user'
-import router from '@/router'
 
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+const loading = ref(false)
 const formRef = ref<FormInstance>()
 const form = reactive({
   username: '',
@@ -35,14 +39,28 @@ function onGoogleInput(value: string) {
   form.googleCode = value.replace(/\D/g, '').slice(0, 6)
 }
 
+function safeRedirect(value: unknown) {
+  if (typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')) {
+    return value
+  }
+  return '/'
+}
+
 async function onSubmit() {
+  if (loading.value) return
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
-  // 
-  useUserStore().login(form)
-    .then(() => {
-      router.push('/')
-    })
+  loading.value = true
+  try {
+    await userStore.login(form)
+    await router.push(safeRedirect(route.query.redirect))
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === '登录失败，未返回令牌') {
+      ElMessage.error(error.message)
+    }
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -78,7 +96,7 @@ async function onSubmit() {
         </el-form-item>
 
         <el-form-item class="submit-item">
-          <el-button class="submit" type="primary" round native-type="submit">登录</el-button>
+          <el-button class="submit" type="primary" round native-type="submit" :loading="loading">登录</el-button>
         </el-form-item>
       </el-form>
     </section>

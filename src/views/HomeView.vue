@@ -1,71 +1,84 @@
 <script setup lang="ts">
-import { View, Hide } from '@element-plus/icons-vue'
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { paymentHomeTotal } from '@/api/bi'
+import HomeDetailPanel from '@/components/home/HomeDetailPanel.vue'
+import HomeStatCard from '@/components/home/HomeStatCard.vue'
+import { homeRanges, useFundDetail } from '@/composables/useFundDetail'
+import type { OpsHomeTotalResp } from '@/types'
 
-const ranges = ['近10分钟', '今日', '昨日', '本周', '本月'] as const
-type Range = (typeof ranges)[number]
+const loading = ref(false)
+const merchantCredit = ref<OpsHomeTotalResp | null>(null)
+const merchantDebit = ref<OpsHomeTotalResp | null>(null)
+const collect = useFundDetail('CREDIT')
+const pay = useFundDetail('DEBIT')
 
-const collectRange = ref<Range>('今日')
-const payRange = ref<Range>('今日')
-
-const cards = [
-  {
-    key: 'collect-amount',
-    title: '收款金额',
-    value: '0.00',
-    lines: [
-      ['今日成功收款金额', '0.00'],
-      ['今日总收款金额', '0.00'],
-      ['金额成功率', '%'],
-    ],
-  },
-  {
-    key: 'collect-count',
-    title: '收款笔数',
-    value: '0',
-    lines: [
-      ['今日成功收款笔数', '0'],
-      ['今日总收款笔数', '0'],
-      ['笔数成功率', '%'],
-    ],
-  },
-  {
-    key: 'pay-amount',
-    title: '付款金额',
-    value: '0.00',
-    lines: [
-      ['今日成功付款金额', '0.00'],
-      ['今日总付款金额', '0.00'],
-      ['金额成功率', '%'],
-    ],
-  },
-  {
-    key: 'pay-count',
-    title: '付款笔数',
-    value: '0',
-    lines: [
-      ['今日成功付款笔数', '0'],
-      ['今日总付款笔数', '0'],
-      ['笔数成功率', '%'],
-    ],
-  },
-] as const
-
-const hidden = ref<Record<string, boolean>>({})
-
-function mask(key: string, value: string) {
-  return hidden.value[key] ? '****' : value
+function createEmptyTotal(): OpsHomeTotalResp {
+  return {
+    failedAmount: '0',
+    failedCount: 0,
+    fundDirection: '',
+    institutionType: '',
+    successAmount: '0',
+    successCount: 0,
+    successRateByAmount: '0',
+    successRateByCount: '0',
+    totalAmount: '0',
+    totalCount: 0,
+  }
 }
 
-const columns = [
-  { prop: 'account', label: '账户', sortable: false, minWidth: 120 },
-  { prop: 'successCount', label: '成功笔数', sortable: true, minWidth: 110 },
-  { prop: 'totalCount', label: '总笔数', sortable: true, minWidth: 100 },
-  { prop: 'countRate', label: '笔数成功率', sortable: true, minWidth: 120 },
-  { prop: 'successAmount', label: '成功金额', sortable: true, minWidth: 110 },
-  { prop: 'totalAmount', label: '总金额', sortable: true, minWidth: 100 },
-  { prop: 'amountRate', label: '金额成功率', sortable: true, minWidth: 120 },
-]
+function amountLines(action: string, data: OpsHomeTotalResp) {
+  return [
+    { label: `今日成功${action}金额`, value: data.successAmount },
+    { label: `今日总${action}金额`, value: data.totalAmount },
+    { label: '金额成功率', value: `${data.successRateByAmount}%` },
+  ]
+}
+
+function countLines(action: string, data: OpsHomeTotalResp) {
+  return [
+    { label: `今日成功${action}笔数`, value: data.successCount },
+    { label: `今日总${action}笔数`, value: data.totalCount },
+    { label: '笔数成功率', value: `${data.successRateByCount}%` },
+  ]
+}
+
+const statCards = computed(() => {
+  const cards = []
+  if (merchantCredit.value) {
+    cards.push(
+      { key: 'collect-amount', title: '收款金额', value: merchantCredit.value.successAmount, lines: amountLines('收款', merchantCredit.value) },
+      { key: 'collect-count', title: '收款笔数', value: merchantCredit.value.successCount, lines: countLines('收款', merchantCredit.value) },
+    )
+  }
+  if (merchantDebit.value) {
+    cards.push(
+      { key: 'pay-amount', title: '付款金额', value: merchantDebit.value.successAmount, lines: amountLines('付款', merchantDebit.value) },
+      { key: 'pay-count', title: '付款笔数', value: merchantDebit.value.successCount, lines: countLines('付款', merchantDebit.value) },
+    )
+  }
+  return cards
+})
+
+async function loadTotal() {
+  loading.value = true
+  try {
+    const res = await paymentHomeTotal()
+    merchantCredit.value = res.data?.merchantCredit ?? createEmptyTotal()
+    merchantDebit.value = res.data?.merchantDebit ?? createEmptyTotal()
+  } catch {
+    merchantCredit.value = null
+    merchantDebit.value = null
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  void loadTotal()
+  void collect.load()
+  void pay.load()
+})
 </script>
 
 <template>
@@ -73,85 +86,18 @@ const columns = [
     <div class="page-head">首页</div>
 
     <div class="page-body">
-      <section class="stats">
-        <article v-for="card in cards" :key="card.key" class="stat-card">
-          <header>
-            <span>{{ card.title }}</span>
-            <button
-              type="button"
-              class="eye"
-              :aria-label="hidden[card.key] ? '显示金额' : '隐藏金额'"
-              @click="hidden[card.key] = !hidden[card.key]"
-            >
-              <el-icon><Hide v-if="hidden[card.key]" /><View v-else /></el-icon>
-            </button>
-          </header>
-          <strong>{{ mask(card.key, card.value) }}</strong>
-          <p v-for="line in card.lines" :key="line[0]">
-            {{ line[0] }}: {{ mask(card.key, line[1]) }}
-          </p>
-        </article>
+      <section class="stats" v-loading="loading" element-loading-text="加载中">
+        <HomeStatCard v-for="card in statCards" :key="card.key" :title="card.title" :value="card.value"
+          :lines="card.lines" />
       </section>
 
-      <section class="panel">
-        <header class="panel-head">
-          <h2>收款详情</h2>
-          <div class="ranges">
-            <button
-              v-for="item in ranges"
-              :key="item"
-              type="button"
-              :class="{ active: collectRange === item }"
-              @click="collectRange = item"
-            >
-              {{ item }}
-            </button>
-          </div>
-        </header>
-        <el-table :data="[]" height="260">
-          <el-table-column
-            v-for="column in columns"
-            :key="column.prop"
-            :prop="column.prop"
-            :label="column.label"
-            :sortable="column.sortable"
-            :min-width="column.minWidth"
-          />
-          <template #empty>
-            <el-empty description="暂无数据" :image-size="72" />
-          </template>
-        </el-table>
-      </section>
+      <HomeDetailPanel title="收款详情" :ranges="homeRanges" :active-range="collect.range" :rows="collect.rows"
+        :loading="collect.loading" :page="collect.page" :page-size="collect.pageSize" :total="collect.total"
+        @range-change="collect.changeRange" @page-change="collect.changePage" @size-change="collect.changePageSize" />
 
-      <section class="panel">
-        <header class="panel-head">
-          <h2>付款详情</h2>
-          <div class="ranges">
-            <button
-              v-for="item in ranges"
-              :key="item"
-              type="button"
-              :class="{ active: payRange === item }"
-              @click="payRange = item"
-            >
-              {{ item }}
-            </button>
-          </div>
-        </header>
-        <el-table :data="[]" height="260">
-          <el-table-column
-            v-for="column in columns"
-            :key="column.prop"
-            :prop="column.prop"
-            :label="column.label"
-            :sortable="column.sortable"
-            :min-width="column.minWidth"
-          />
-          <template #empty>
-            <el-empty description="暂无数据" :image-size="72" />
-          </template>
-        </el-table>
-      </section>
+      <HomeDetailPanel title="付款详情" :ranges="homeRanges" :active-range="pay.range" :rows="pay.rows"
+        :loading="pay.loading" :page="pay.page" :page-size="pay.pageSize" :total="pay.total"
+        @range-change="pay.changeRange" @page-change="pay.changePage" @size-change="pay.changePageSize" />
     </div>
   </div>
 </template>
@@ -182,95 +128,7 @@ const columns = [
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
-}
-
-.stat-card {
-  padding: 16px 18px 14px;
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
-}
-
-.stat-card header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: #606266;
-  font-size: 14px;
-}
-
-.eye {
-  display: inline-flex;
-  padding: 0;
-  color: #c0c4cc;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-}
-
-.eye:hover {
-  color: #909399;
-}
-
-.stat-card strong {
-  display: block;
-  margin: 12px 0 10px;
-  color: #303133;
-  font-size: 28px;
-  font-weight: 650;
-  line-height: 1.2;
-}
-
-.stat-card p {
-  margin: 0;
-  color: #909399;
-  font-size: 12px;
-  line-height: 1.8;
-}
-
-.panel {
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
-}
-
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 48px;
-  padding: 0 16px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.panel-head h2 {
-  margin: 0;
-  color: #303133;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.ranges {
-  display: flex;
-  gap: 16px;
-}
-
-.ranges button {
-  padding: 0;
-  color: #909399;
-  font-size: 13px;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-}
-
-.ranges button.active {
-  color: #303133;
-  font-weight: 650;
-}
-
-.panel :deep(.el-table__empty-block) {
-  min-height: 210px;
+  min-height: 148px;
 }
 
 @media (max-width: 1100px) {
@@ -282,14 +140,6 @@ const columns = [
 @media (max-width: 640px) {
   .stats {
     grid-template-columns: 1fr;
-  }
-
-  .panel-head {
-    height: auto;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 12px 16px;
   }
 }
 </style>
