@@ -1,80 +1,58 @@
-import axios from 'axios'
-import { ElNotification, ElMessage, ElLoading } from 'element-plus'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
+import { ElMessage, ElNotification } from 'element-plus'
+import router from '@/router'
+import useUserStore from '@/stores/user'
 import { getToken } from '@/utils/auth'
 import errorCode from '@/utils/errorCode'
-import { tansParams, blobValidate } from '@/utils/ruoyi'
-import useUserStore from '@/stores/user'
-import router from '@/router'
+import { logger } from '@/utils/logger'
+import { tansParams } from '@/utils/ruoyi'
 
-let downloadLoadingInstance: ReturnType<typeof ElLoading.service>
-// 是否显示重新登录
 export const isRelogin = { show: false }
 
+const REQUEST_SIZE_LIMIT = 5 * 1024 * 1024
+
 axios.defaults.headers['Content-Type'] = 'application/json;charset=utf-8'
-// 创建axios实例
+
 const service = axios.create({
-  // axios中请求配置有baseURL选项，表示请求URL公共部分
   baseURL: import.meta.env.VITE_APP_BASE_API,
-  // 超时
-  timeout: 10000
+  timeout: 10000,
 })
 
-// 请求拦截器
-service.interceptors.request.use((config: any) => {
-  // 页面自己处理错误时设为 true，拦截器不再弹提示
-  config.skipErrorMessage = (config.headers || {}).skipErrorMessage === true
-  // 是否需要设置 token
-  const isToken = (config.headers || {}).isToken === false
-  // 是否需要防止数据重复提交
-  const isRepeatSubmit = (config.headers || {}).repeatSubmit === false
-  // 间隔时间(ms)，小于此时间视为重复提交
-  const interval = (config.headers || {}).interval || 1000
-  if (getToken() && !isToken) {
-    config.headers['Authorization'] = 'Bearer ' + getToken() // 让每个请求携带自定义token 请根据实际情况自行修改
-  }
-  // get请求映射params参数
-  if (config.method === 'get' && config.params) {
-    let url = config.url + '?' + tansParams(config.params)
-    url = url.slice(0, -1)
-    config.params = {}
-    config.url = url
-  }
-  if (!isRepeatSubmit && (config.method === 'post' || config.method === 'put')) {
-    const requestObj = {
-      url: config.url,
-      data: typeof config.data === 'object' ? JSON.stringify(config.data) : config.data,
-      time: new Date().getTime()
-    }
-    const requestSize = Object.keys(JSON.stringify(requestObj)).length // 请求数据大小
-    const limitSize = 5 * 1024 * 1024 // 限制存放数据5M
-    if (requestSize >= limitSize) {
-      console.warn(`[${config.url}]: ` + '请求数据大小超出允许的5M限制，无法进行防重复提交验证。')
-      return config
-    }
-    // const sessionObj = cache.session.getJSON('sessionObj')
-    // if (sessionObj === undefined || sessionObj === null || sessionObj === '') {
-    //   cache.session.setJSON('sessionObj', requestObj)
-    // } else {
-    //   const s_url = sessionObj.url                // 请求地址
-    //   const s_data = sessionObj.data              // 请求数据
-    //   const s_time = sessionObj.time              // 请求时间
-    //   if (s_data === requestObj.data && requestObj.time - s_time < interval && s_url === requestObj.url) {
-    //     const message = '数据正在处理，请勿重复提交'
-    //     console.warn(`[${s_url}]: ` + message)
-    //     return Promise.reject(new Error(message))
-    //   } else {
-    //     cache.session.setJSON('sessionObj', requestObj)
-    //   }
-    // }
-  }
-  return config
-}, (error: any) => {
-  console.log(error)
-  Promise.reject(error)
-})
+interface AjaxBody {
+  code?: number
+  msg?: string
+}
 
-// 响应拦截器
-function handleUnauthorized() {
+interface AppRequestConfig extends InternalAxiosRequestConfig {
+  skipErrorMessage?: boolean
+}
+
+function readHeader(config: InternalAxiosRequestConfig, key: string): unknown {
+  const headers = config.headers as unknown as Record<string, unknown>
+  return headers[key]
+}
+
+function isHeaderTrue(value: unknown): boolean {
+  return value === true || value === 'true'
+}
+
+function isHeaderFalse(value: unknown): boolean {
+  return value === false || value === 'false'
+}
+
+function isAjaxBody(value: unknown): value is AjaxBody {
+  return typeof value === 'object' && value !== null
+}
+
+function resolveBusinessCode(body: AjaxBody): number {
+  return typeof body.code === 'number' ? body.code : 1
+}
+
+function resolveBusinessMessage(body: AjaxBody, code: number): string {
+  return errorCode[String(code)] ?? body.msg ?? errorCode.default ?? '系统未知错误，请反馈给管理员'
+}
+
+function handleUnauthorized(): void {
   if (isRelogin.show) return
   isRelogin.show = true
   useUserStore().clearSession()
@@ -90,83 +68,134 @@ function handleUnauthorized() {
   })
 }
 
-service.interceptors.response.use((res: any) => {
-  // 未设置状态码则默认成功状态
-  const code = res.data.code || 1
-  // 获取错误信息
-  const msg = errorCode[code] || res.data.msg || errorCode['default']
-  // 二进制数据则直接返回
-  if (res.request.responseType === 'blob' || res.request.responseType === 'arraybuffer') {
-    return res.data
-  }
-  if (code === 401 || (code === 9 && res.data?.msg === 'notLogin')) {
-    if (!res.config?.skipErrorMessage) handleUnauthorized()
-    return Promise.reject('无效的会话，或者会话已过期，请重新登录。')
-  } else if (res.config?.skipErrorMessage && code !== 1) {
-    return Promise.reject(new Error(msg))
-  } else if (code === 500) {
-    ElMessage({ message: msg, type: 'error' })
-    return Promise.reject(new Error(msg))
-  } else if (code === 601) {
-    ElMessage({ message: msg, type: 'warning' })
-    return Promise.reject(new Error(msg))
-  } else if (code !== 1) {
-    ElNotification.error({ title: msg })
-    return Promise.reject('error')
-  } else {
-    return Promise.resolve(res.data)
-  }
-},
-  (error: any) => {
-    console.log('err' + error)
-    const status = error?.response?.status
-    const businessCode = error?.response?.data?.code
-    const businessMsg = error?.response?.data?.msg
-    if (!error?.config?.skipErrorMessage && (status === 401 || (businessCode === 9 && businessMsg === 'notLogin'))) {
+function isLoginExpired(status: number | undefined, code: number | undefined, message: string | undefined): boolean {
+  return status === 401 || (code === 9 && message === 'notLogin')
+}
+
+service.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const appConfig = config as AppRequestConfig
+    appConfig.skipErrorMessage = isHeaderTrue(readHeader(config, 'skipErrorMessage'))
+    const skipToken = isHeaderFalse(readHeader(config, 'isToken'))
+    const skipRepeatSubmit = isHeaderFalse(readHeader(config, 'repeatSubmit'))
+
+    if (getToken() && !skipToken) {
+      config.headers.Authorization = `Bearer ${getToken()}`
+    }
+
+    if (config.method === 'get' && config.params) {
+      const params = config.params as Record<string, unknown>
+      let url = `${config.url}?${tansParams(params)}`
+      url = url.slice(0, -1)
+      config.params = {}
+      config.url = url
+    }
+
+    if (!skipRepeatSubmit && (config.method === 'post' || config.method === 'put')) {
+      const requestText = JSON.stringify({
+        url: config.url,
+        data: typeof config.data === 'object' ? JSON.stringify(config.data) : config.data,
+        time: Date.now(),
+      })
+      if (requestText.length >= REQUEST_SIZE_LIMIT) {
+        logger.warn(`[${config.url ?? ''}] 请求数据超过 5MB，已跳过防重复提交校验`)
+      }
+    }
+
+    return config
+  },
+  (error: unknown) => {
+    logger.error('请求未发出', error)
+    return Promise.reject(error)
+  },
+)
+
+service.interceptors.response.use(
+  (response) => {
+    const body: unknown = response.data
+    const appConfig = response.config as AppRequestConfig
+    if (
+      response.request?.responseType === 'blob' ||
+      response.request?.responseType === 'arraybuffer'
+    ) {
+      return response.data
+    }
+
+    const payload = isAjaxBody(body) ? body : {}
+    const code = resolveBusinessCode(payload)
+    const message = resolveBusinessMessage(payload, code)
+
+    if (isLoginExpired(undefined, code, payload.msg) || code === 401) {
+      if (appConfig.skipErrorMessage !== true) handleUnauthorized()
+      return Promise.reject(new Error('无效的会话，或者会话已过期，请重新登录。'))
+    }
+    if (appConfig.skipErrorMessage === true && code !== 1) {
+      return Promise.reject(new Error(message))
+    }
+    if (code === 500) {
+      ElMessage({ message, type: 'error' })
+      return Promise.reject(new Error(message))
+    }
+    if (code === 601) {
+      ElMessage({ message, type: 'warning' })
+      return Promise.reject(new Error(message))
+    }
+    if (code !== 1) {
+      ElNotification.error({ title: message })
+      return Promise.reject(new Error(message))
+    }
+    return response.data
+  },
+  (error: unknown) => {
+    const detail = readHttpError(error)
+    if (
+      detail.skipErrorMessage !== true &&
+      isLoginExpired(detail.status, detail.businessCode, detail.businessMsg)
+    ) {
       handleUnauthorized()
       return Promise.reject(error)
     }
-    if (error?.config?.skipErrorMessage) {
+    if (detail.skipErrorMessage === true) {
       return Promise.reject(error)
     }
-    let message: string = error?.message || '系统接口异常'
-    if (message == "Network Error") {
-      message = "后端接口连接异常"
-    } else if (message.includes("timeout")) {
-      message = "系统接口请求超时"
-    } else if (message.includes("Request failed with status code")) {
-      message = "系统接口" + message.slice(-3) + "异常"
+
+    let message = detail.message || '系统接口异常'
+    if (message === 'Network Error') {
+      message = '后端接口连接异常'
+    } else if (message.includes('timeout')) {
+      message = '系统接口请求超时'
+    } else if (message.includes('Request failed with status code')) {
+      message = `系统接口${message.slice(-3)}异常`
     }
-    ElMessage({ message: message, type: 'error', duration: 5 * 1000 })
+    ElMessage({ message, type: 'error', duration: 5 * 1000 })
     return Promise.reject(error)
-  }
+  },
 )
 
-// 通用下载方法
-// export function download(url: string, params: any, filename: string, config?: any) {
-//   downloadLoadingInstance = ElLoading.service({ text: "正在下载数据，请稍候", background: "rgba(0, 0, 0, 0.7)", })
-//   return service.post(url, params, {
-//     transformRequest: [(params: any) => { return tansParams(params) }],
-//     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-//     responseType: 'blob',
-//     ...config
-//   }).then(async (data: any) => {
-//     const isBlob = blobValidate(data)
-//     if (isBlob) {
-//       const blob = new Blob([data])
-//       saveAs(blob, filename)
-//     } else {
-//       const resText = await data.text()
-//       const rspObj = JSON.parse(resText)
-//       const errMsg = errorCode[rspObj.code] || rspObj.msg || errorCode['default']
-//       ElMessage.error(errMsg)
-//     }
-//     downloadLoadingInstance.close()
-//   }).catch((r: any) => {
-//     console.error(r)
-//     ElMessage.error('下载文件出现错误，请联系管理员！')
-//     downloadLoadingInstance.close()
-//   })
-// }
+function readHttpError(error: unknown): {
+  message: string
+  status?: number
+  businessCode?: number
+  businessMsg?: string
+  skipErrorMessage?: boolean
+} {
+  if (typeof error !== 'object' || error === null) {
+    return { message: '系统接口异常' }
+  }
+
+  const record = error as {
+    message?: string
+    config?: AppRequestConfig
+    response?: { status?: number; data?: unknown }
+  }
+  const data = isAjaxBody(record.response?.data) ? record.response.data : undefined
+  return {
+    message: record.message ?? '系统接口异常',
+    status: record.response?.status,
+    businessCode: data?.code,
+    businessMsg: data?.msg,
+    skipErrorMessage: record.config?.skipErrorMessage,
+  }
+}
 
 export default service

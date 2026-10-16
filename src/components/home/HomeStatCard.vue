@@ -8,31 +8,33 @@ defineProps<{
   lines: { label: string; value: string | number }[]
 }>()
 
-const hidden = ref(false)
+const isAmountHidden = ref(false)
 
-function show(value: string | number) {
-  return hidden.value ? '****' : String(value)
+function showAmount(value: string | number): string {
+  return isAmountHidden.value ? '****' : String(value)
 }
 </script>
 
 <template>
   <article class="stat-card">
-    <header>
+    <header class="stat-head">
       <span>{{ title }}</span>
       <button
         type="button"
         class="eye"
-        :aria-label="hidden ? '显示金额' : '隐藏金额'"
-        @click="hidden = !hidden"
+        :aria-label="isAmountHidden ? '显示金额' : '隐藏金额'"
+        @click="isAmountHidden = !isAmountHidden"
       >
         <el-icon>
-          <Hide v-if="hidden" />
+          <Hide v-if="isAmountHidden" />
           <View v-else />
         </el-icon>
       </button>
     </header>
-    <strong>{{ show(value) }}</strong>
-    <p v-for="line in lines" :key="line.label">{{ line.label }}: {{ show(line.value) }}</p>
+    <strong class="stat-value">{{ showAmount(value) }}</strong>
+    <p v-for="line in lines" :key="line.label" class="stat-line">
+      {{ line.label }}: {{ showAmount(line.value) }}
+    </p>
   </article>
 </template>
 
@@ -44,7 +46,7 @@ function show(value: string | number) {
   border-radius: 4px;
 }
 
-.stat-card header {
+.stat-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -65,7 +67,7 @@ function show(value: string | number) {
   color: #909399;
 }
 
-.stat-card strong {
+.stat-value {
   display: block;
   margin: 12px 0 10px;
   color: #303133;
@@ -74,7 +76,7 @@ function show(value: string | number) {
   line-height: 1.2;
 }
 
-.stat-card p {
+.stat-line {
   margin: 0;
   color: #909399;
   font-size: 12px;

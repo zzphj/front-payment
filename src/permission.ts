@@ -11,8 +11,9 @@ function loginLocation(redirect: string) {
 }
 
 function isUnauthorized(error: unknown) {
-    if (typeof error === 'string') {
-        return error.includes('重新登录') || error.includes('notLogin')
+    if (typeof error === 'string' || error instanceof Error) {
+        const message = typeof error === 'string' ? error : error.message
+        return message.includes('重新登录') || message.includes('notLogin')
     }
     if (!error || typeof error !== 'object' || !('response' in error)) {
         return false

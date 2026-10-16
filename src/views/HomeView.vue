@@ -6,7 +6,8 @@ import HomeStatCard from '@/components/home/HomeStatCard.vue'
 import { homeRanges, useFundDetail } from '@/composables/useFundDetail'
 import type { OpsHomeTotalResp } from '@/types'
 
-const loading = ref(false)
+const isLoading = ref(false)
+const loadError = ref('')
 const merchantCredit = ref<OpsHomeTotalResp | null>(null)
 const merchantDebit = ref<OpsHomeTotalResp | null>(null)
 const collect = useFundDetail('CREDIT')
@@ -60,17 +61,17 @@ const statCards = computed(() => {
   return cards
 })
 
-async function loadTotal() {
-  loading.value = true
+async function loadTotal(): Promise<void> {
+  isLoading.value = true
+  loadError.value = ''
   try {
     const res = await paymentHomeTotal()
     merchantCredit.value = res.data?.merchantCredit ?? createEmptyTotal()
     merchantDebit.value = res.data?.merchantDebit ?? createEmptyTotal()
   } catch {
-    merchantCredit.value = null
-    merchantDebit.value = null
+    loadError.value = '汇总加载失败'
   } finally {
-    loading.value = false
+    isLoading.value = false
   }
 }
 
@@ -86,18 +87,47 @@ onMounted(() => {
     <div class="page-head">首页</div>
 
     <div class="page-body">
-      <section class="stats" v-loading="loading" element-loading-text="加载中">
-        <HomeStatCard v-for="card in statCards" :key="card.key" :title="card.title" :value="card.value"
-          :lines="card.lines" />
+      <el-alert v-if="loadError" :title="loadError" type="error" show-icon :closable="false" />
+
+      <section class="stats" v-loading="isLoading" element-loading-text="加载中">
+        <HomeStatCard
+          v-for="card in statCards"
+          :key="card.key"
+          :title="card.title"
+          :value="card.value"
+          :lines="card.lines"
+        />
       </section>
 
-      <HomeDetailPanel title="收款详情" :ranges="homeRanges" :active-range="collect.range" :rows="collect.rows"
-        :loading="collect.loading" :page="collect.page" :page-size="collect.pageSize" :total="collect.total"
-        @range-change="collect.changeRange" @page-change="collect.changePage" @size-change="collect.changePageSize" />
+      <HomeDetailPanel
+        title="收款详情"
+        :ranges="homeRanges"
+        :active-range="collect.range"
+        :rows="collect.rows"
+        :is-loading="collect.isLoading"
+        :load-error="collect.loadError"
+        :page="collect.page"
+        :page-size="collect.pageSize"
+        :total="collect.total"
+        @range-change="collect.changeRange"
+        @page-change="collect.changePage"
+        @size-change="collect.changePageSize"
+      />
 
-      <HomeDetailPanel title="付款详情" :ranges="homeRanges" :active-range="pay.range" :rows="pay.rows"
-        :loading="pay.loading" :page="pay.page" :page-size="pay.pageSize" :total="pay.total"
-        @range-change="pay.changeRange" @page-change="pay.changePage" @size-change="pay.changePageSize" />
+      <HomeDetailPanel
+        title="付款详情"
+        :ranges="homeRanges"
+        :active-range="pay.range"
+        :rows="pay.rows"
+        :is-loading="pay.isLoading"
+        :load-error="pay.loadError"
+        :page="pay.page"
+        :page-size="pay.pageSize"
+        :total="pay.total"
+        @range-change="pay.changeRange"
+        @page-change="pay.changePage"
+        @size-change="pay.changePageSize"
+      />
     </div>
   </div>
 </template>

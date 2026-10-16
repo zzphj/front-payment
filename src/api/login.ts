@@ -28,7 +28,7 @@ export function getInfo(): Promise<AjaxResult<UserInfoResult>> {
     })
 }
 
-export function logOut() {
+export function logOut(): Promise<AjaxResult<unknown>> {
     return request({
         url: '/member/signOut',
         method: 'get',

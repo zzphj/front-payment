@@ -17,6 +17,21 @@ const router = createRouter({
           name: 'home',
           component: () => import('@/views/HomeView.vue'),
         },
+        {
+          path: 'orders/collect',
+          name: 'collect-orders',
+          component: () => import('@/views/order/CollectOrderView.vue'),
+        },
+        {
+          path: 'orders/pay',
+          name: 'pay-orders',
+          component: () => import('@/views/order/PayOrderView.vue'),
+        },
+        {
+          path: 'funds',
+          name: 'funds',
+          component: () => import('@/views/fund/FundView.vue'),
+        },
       ],
     },
   ],

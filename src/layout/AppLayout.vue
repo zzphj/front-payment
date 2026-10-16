@@ -7,7 +7,7 @@ import useUserStore from '@/stores/user'
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
-const loggingOut = ref(false)
+const isLoggingOut = ref(false)
 
 const watermarkFont = {
   color: 'rgba(0, 0, 0, 0.06)',
@@ -18,14 +18,14 @@ function onSelect(index: string) {
   if (index.startsWith('/')) router.push(index)
 }
 
-async function onCommand(command: string | number) {
-  if (command !== 'logout' || loggingOut.value) return
-  loggingOut.value = true
+async function handleCommand(command: string | number): Promise<void> {
+  if (command !== 'logout' || isLoggingOut.value) return
+  isLoggingOut.value = true
   try {
     await userStore.logOut()
     await router.push('/login')
   } finally {
-    loggingOut.value = false
+    isLoggingOut.value = false
   }
 }
 </script>
@@ -37,7 +37,7 @@ async function onCommand(command: string | number) {
         <div class="brand">Merchant Client</div>
         <div class="header-actions">
           <span class="action">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg class="lang-icon" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="9" />
               <path d="M3 12h18M12 3c2.5 2.8 3.8 5.8 3.8 9s-1.3 6.2-3.8 9c-2.5-2.8-3.8-5.8-3.8-9S9.5 5.8 12 3z" />
             </svg>
@@ -47,14 +47,14 @@ async function onCommand(command: string | number) {
             <el-icon :size="16"><Bell /></el-icon>
           </el-badge>
           <el-icon class="action" :size="16"><Setting /></el-icon>
-          <el-dropdown trigger="click" @command="onCommand">
+          <el-dropdown trigger="click" @command="handleCommand">
             <span class="action user">
               <el-icon :size="16"><User /></el-icon>
               {{ userStore.displayName }}
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout" :disabled="loggingOut">退出登录</el-dropdown-item>
+                <el-dropdown-item command="logout" :disabled="isLoggingOut">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -66,25 +66,32 @@ async function onCommand(command: string | number) {
           <el-menu
             class="layout-menu"
             :default-active="route.path"
+            :default-openeds="['orders']"
             @select="onSelect"
           >
             <el-menu-item index="/">
               <el-icon><House /></el-icon>
-              <span>首页</span>
+              <span class="menu-label">首页</span>
             </el-menu-item>
             <el-sub-menu index="orders">
               <template #title>
                 <el-icon><List /></el-icon>
-                <span>订单管理</span>
+                <span class="menu-label">订单管理</span>
               </template>
+              <el-menu-item index="/orders/collect">
+                <span class="menu-label">收款订单</span>
+              </el-menu-item>
+              <el-menu-item index="/orders/pay">
+                <span class="menu-label">付款订单</span>
+              </el-menu-item>
             </el-sub-menu>
-            <el-menu-item index="funds">
+            <el-menu-item index="/funds">
               <el-icon><Wallet /></el-icon>
-              <span>资金管理</span>
+              <span class="menu-label">资金管理</span>
             </el-menu-item>
             <el-menu-item index="settings">
               <el-icon><User /></el-icon>
-              <span>个人设置</span>
+              <span class="menu-label">个人设置</span>
             </el-menu-item>
           </el-menu>
         </el-aside>
@@ -138,7 +145,7 @@ async function onCommand(command: string | number) {
   cursor: pointer;
 }
 
-.action svg {
+.lang-icon {
   width: 16px;
   height: 16px;
   fill: none;
@@ -180,11 +187,11 @@ async function onCommand(command: string | number) {
 
 @media (max-width: 760px) {
   .layout-aside {
+    /* 覆盖 el-aside 写在元素上的 width，窄屏只保留图标 */
     width: 72px !important;
   }
 
-  .layout-menu :deep(.el-menu-item span),
-  .layout-menu :deep(.el-sub-menu__title span) {
+  .menu-label {
     display: none;
   }
 }

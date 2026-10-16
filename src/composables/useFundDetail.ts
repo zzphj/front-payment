@@ -1,6 +1,6 @@
 import { paymentHomePage } from '@/api/bi'
 import type { OpsHomeDetailRow } from '@/types'
-import { reactive, ref } from 'vue'
+import { onScopeDispose, reactive, ref } from 'vue'
 
 export const homeRanges = ['近10分钟', '今日', '昨日', '本周', '本月'] as const
 export type HomeRange = (typeof homeRanges)[number]
@@ -88,13 +88,17 @@ export function useFundDetail(direction: 'CREDIT' | 'DEBIT') {
   const page = ref(1)
   const pageSize = ref(10)
   const range = ref<HomeRange>('今日')
-  const loading = ref(false)
+  const isLoading = ref(false)
+  const loadError = ref('')
   let requestSerial = 0
   let scheduled = false
+  let alive = true
 
-  async function load() {
+  async function load(): Promise<void> {
+    if (!alive) return
     const serial = ++requestSerial
-    loading.value = true
+    isLoading.value = true
+    loadError.value = ''
     try {
       const res = await paymentHomePage({
         page: page.value,
@@ -104,18 +108,19 @@ export function useFundDetail(direction: 'CREDIT' | 'DEBIT') {
           fundDirection: direction,
         },
       })
-      if (serial !== requestSerial) return
+      if (!alive || serial !== requestSerial) return
       rows.value = res.data?.data ?? []
       total.value = res.data?.total ?? 0
     } catch {
-      // 拦截器已经弹出错误提示，这里保留当前表格数据。
+      if (!alive || serial !== requestSerial) return
+      loadError.value = '明细加载失败'
     } finally {
-      if (serial === requestSerial) loading.value = false
+      if (alive && serial === requestSerial) isLoading.value = false
     }
   }
 
-  function scheduleLoad() {
-    if (scheduled) return
+  function scheduleLoad(): void {
+    if (!alive || scheduled) return
     scheduled = true
     queueMicrotask(() => {
       scheduled = false
@@ -123,24 +128,29 @@ export function useFundDetail(direction: 'CREDIT' | 'DEBIT') {
     })
   }
 
-  function changePage(next: number) {
+  function changePage(next: number): void {
     if (page.value === next) return
     page.value = next
     scheduleLoad()
   }
 
-  function changePageSize(next: number) {
+  function changePageSize(next: number): void {
     pageSize.value = next
     page.value = 1
     scheduleLoad()
   }
 
-  function changeRange(next: HomeRange) {
+  function changeRange(next: HomeRange): void {
     if (range.value === next) return
     range.value = next
     page.value = 1
     scheduleLoad()
   }
+
+  onScopeDispose(() => {
+    alive = false
+    requestSerial += 1
+  })
 
   return reactive({
     rows,
@@ -148,7 +158,8 @@ export function useFundDetail(direction: 'CREDIT' | 'DEBIT') {
     page,
     pageSize,
     range,
-    loading,
+    isLoading,
+    loadError,
     load,
     changePage,
     changePageSize,

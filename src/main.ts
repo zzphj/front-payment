@@ -8,6 +8,7 @@ import 'element-plus/dist/index.css'
 import App from './App.vue'
 import router from './router'
 import './permission'
+import './styles/base.css'
 
 const app = createApp(App)
 

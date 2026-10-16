@@ -8,13 +8,18 @@ import useUserStore from '@/stores/user'
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
-const loading = ref(false)
+const isLoading = ref(false)
 const formRef = ref<FormInstance>()
-const form = reactive({
-  username: '',
-  password: '',
-  googleCode: '',
-})
+
+function createLoginForm() {
+  return {
+    username: '',
+    password: '',
+    googleCode: '',
+  }
+}
+
+const form = reactive(createLoginForm())
 
 const codeLength = computed(() => form.googleCode.length)
 
@@ -46,11 +51,11 @@ function safeRedirect(value: unknown) {
   return '/'
 }
 
-async function onSubmit() {
-  if (loading.value) return
+async function handleSubmit(): Promise<void> {
+  if (isLoading.value) return
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
-  loading.value = true
+  isLoading.value = true
   try {
     await userStore.login(form)
     await router.push(safeRedirect(route.query.redirect))
@@ -59,7 +64,7 @@ async function onSubmit() {
       ElMessage.error(error.message)
     }
   } finally {
-    loading.value = false
+    isLoading.value = false
   }
 }
 </script>
@@ -68,11 +73,11 @@ async function onSubmit() {
   <main class="login-page">
     <section class="login-card">
       <header class="login-header">
-        <h1>Merchant Client</h1>
-        <p>欢迎登录</p>
+        <h1 class="login-title">Merchant Client</h1>
+        <p class="login-subtitle">欢迎登录</p>
       </header>
 
-      <el-form ref="formRef" class="login-form" :model="form" :rules="rules" @submit.prevent="onSubmit">
+      <el-form ref="formRef" class="login-form" :model="form" :rules="rules" @submit.prevent="handleSubmit">
         <el-form-item prop="username">
           <el-input v-model="form.username" :prefix-icon="User" autocomplete="username" placeholder="账号" />
         </el-form-item>
@@ -96,7 +101,7 @@ async function onSubmit() {
         </el-form-item>
 
         <el-form-item class="submit-item">
-          <el-button class="submit" type="primary" round native-type="submit" :loading="loading">登录</el-button>
+          <el-button class="submit" type="primary" round native-type="submit" :loading="isLoading">登录</el-button>
         </el-form-item>
       </el-form>
     </section>
@@ -129,7 +134,7 @@ async function onSubmit() {
   text-align: center;
 }
 
-.login-header h1 {
+.login-title {
   margin: 0;
   color: var(--el-text-color-primary);
   font-size: 22px;
@@ -137,7 +142,7 @@ async function onSubmit() {
   line-height: 1.3;
 }
 
-.login-header p {
+.login-subtitle {
   margin: 8px 0 0;
   color: var(--el-text-color-placeholder);
   font-size: 13px;

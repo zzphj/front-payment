@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import type { HomeRange } from '@/composables/useFundDetail'
 import type { OpsHomeDetailRow } from '@/types'
+import { formatPageRange } from '@/utils/pagination'
+import { computed } from 'vue'
 
 const props = defineProps<{
   title: string
   ranges: readonly HomeRange[]
   activeRange: HomeRange
   rows: OpsHomeDetailRow[]
-  loading: boolean
+  isLoading: boolean
+  loadError: string
   page: number
   pageSize: number
   total: number
 }>()
+
+const pageText = computed(() => formatPageRange(props.page, props.pageSize, props.total))
 
 const emit = defineEmits<{
   rangeChange: [range: HomeRange]
@@ -19,14 +24,7 @@ const emit = defineEmits<{
   sizeChange: [pageSize: number]
 }>()
 
-function pageText(page: number, pageSize: number, total: number) {
-  if (total === 0) return '第0-0条/总共0条'
-  const start = (page - 1) * pageSize + 1
-  const end = Math.min(page * pageSize, total)
-  return `第${start}-${end}条/总共${total}条`
-}
-
-function selectRange(range: HomeRange) {
+function selectRange(range: HomeRange): void {
   if (range === props.activeRange) return
   emit('rangeChange', range)
 }
@@ -35,20 +33,29 @@ function selectRange(range: HomeRange) {
 <template>
   <section class="panel">
     <header class="panel-head">
-      <h2>{{ title }}</h2>
+      <h2 class="panel-title">{{ title }}</h2>
       <div class="ranges">
         <button
           v-for="item in ranges"
           :key="item"
           type="button"
-          :class="{ active: activeRange === item }"
+          class="range-button"
+          :class="{ 'is-active': activeRange === item }"
           @click="selectRange(item)"
         >
           {{ item }}
         </button>
       </div>
     </header>
-    <el-table v-loading="loading" :data="rows" border>
+    <el-alert
+      v-if="loadError && rows.length > 0"
+      class="load-error"
+      :title="loadError"
+      type="error"
+      show-icon
+      :closable="false"
+    />
+    <el-table v-loading="isLoading" :data="rows" row-key="accountId" border>
       <el-table-column label="账户" min-width="160">
         <template #default="{ row }">{{ row.account?.accountNo }}</template>
       </el-table-column>
@@ -63,11 +70,11 @@ function selectRange(range: HomeRange) {
         <template #default="{ row }">{{ row.successRateByAmount }}%</template>
       </el-table-column>
       <template #empty>
-        <el-empty description="暂无数据" :image-size="72" />
+        <el-empty :description="loadError || '暂无数据'" :image-size="72" />
       </template>
     </el-table>
     <div class="pager">
-      <span>{{ pageText(page, pageSize, total) }}</span>
+      <span>{{ pageText }}</span>
       <el-pagination
         :current-page="page"
         :page-size="pageSize"
@@ -97,7 +104,7 @@ function selectRange(range: HomeRange) {
   border-bottom: 1px solid #ebeef5;
 }
 
-.panel-head h2 {
+.panel-title {
   margin: 0;
   color: #303133;
   font-size: 14px;
@@ -109,7 +116,7 @@ function selectRange(range: HomeRange) {
   gap: 16px;
 }
 
-.ranges button {
+.range-button {
   padding: 0;
   color: #909399;
   font-size: 13px;
@@ -118,9 +125,13 @@ function selectRange(range: HomeRange) {
   cursor: pointer;
 }
 
-.ranges button.active {
+.range-button.is-active {
   color: #303133;
   font-weight: 650;
+}
+
+.load-error {
+  margin: 12px 16px 0;
 }
 
 .panel :deep(.el-table__empty-block) {

@@ -29,8 +29,8 @@ const useUserStore = defineStore('user', {
         displayName: (state) => state.realName || state.memberId || '用户',
     },
     actions: {
-        async login(userinfo: LoginForm) {
-            const res = await login(userinfo.username.trim(), userinfo.password, userinfo.googleCode)
+        async login(userInfo: LoginForm): Promise<void> {
+            const res = await login(userInfo.username.trim(), userInfo.password, userInfo.googleCode)
             const data = res.data
             if (!data?.token) {
                 throw new Error('登录失败，未返回令牌')
@@ -41,7 +41,7 @@ const useUserStore = defineStore('user', {
             this.isBindPhone = data.isBindPhone
             setToken(data.token)
         },
-        async getInfo() {
+        async getInfo(): Promise<void> {
             const res = await getInfo()
             const data = res.data
             if (!data) {
@@ -63,7 +63,7 @@ const useUserStore = defineStore('user', {
             this.profileLoaded = false
             removeToken()
         },
-        async logOut() {
+        async logOut(): Promise<void> {
             try {
                 await logOut()
             } finally {
