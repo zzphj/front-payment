@@ -1,5 +1,5 @@
 import { orderPage, type TransactionPagePath } from '@/api/order'
-import type { TransactionRecord } from '@/types'
+import type { TransactionVO } from '@/types'
 import { formatPageRange } from '@/utils/pagination'
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
 import { buildOrderQuery, createOrderFilter, type OrderFilter } from './order-query'
@@ -8,7 +8,7 @@ export function useTransactionPage(path: TransactionPagePath) {
   // 定义属性
   const isLoading = ref(false)
   const loadError = ref('')
-  const rows = ref<TransactionRecord[]>([])
+  const rows = ref<TransactionVO[]>([])
   const total = ref(0)
   const page = ref(1)
   const pageSize = ref(10)

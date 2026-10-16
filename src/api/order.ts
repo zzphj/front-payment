@@ -1,13 +1,13 @@
 import request from '@/utils/request'
-import type { OrderQuery, TransactionRecord } from '@/types'
-import type { PageDataResult, PageQuery } from '@/types/common'
+import type { OrderQuery, TransactionVO } from '@/types'
+import type { AjaxResult, PageDataResult, PageQuery } from '@/types/common'
 
 export type TransactionPagePath = 'credit' | 'debit'
 
 export function orderPage(
   path: TransactionPagePath,
   data: PageQuery<OrderQuery>,
-): Promise<PageDataResult<TransactionRecord>> {
+): Promise<AjaxResult<PageDataResult<TransactionVO>>> {
   return request({
     url: `/merchant/paymentTransaction/${path}/page`,
     headers: {

@@ -8,15 +8,15 @@ import {
   fundDirectionClass,
   fundDirectionLabel,
   showFundTime,
-  type FundAccountView,
-  type FundFlowView,
+  type FundAccountItem,
+  type FundFlowItem,
 } from './fund'
 
 const isLoading = ref(false)
 const loadError = ref('')
 const isAmountHidden = ref(false)
-const account = ref<FundAccountView | null>(null)
-const flows = ref<FundFlowView[]>([])
+const account = ref<FundAccountItem | null>(null)
+const flows = ref<FundFlowItem[]>([])
 
 const balanceText = computed(() => {
   if (isAmountHidden.value) return '****'
@@ -93,12 +93,12 @@ function handleUnavailable(): void {
           <el-table-column prop="flowNo" label="流水号" min-width="120" />
           <el-table-column prop="accountNo" label="交易账户" min-width="150" show-overflow-tooltip />
           <el-table-column label="交易时间" min-width="190">
-            <template #default="{ row }: { row: FundFlowView }">
+            <template #default="{ row }: { row: FundFlowItem }">
               {{ showFundTime(row.tradeTime) }}
             </template>
           </el-table-column>
           <el-table-column label="收支类型" min-width="100">
-            <template #default="{ row }: { row: FundFlowView }">
+            <template #default="{ row }: { row: FundFlowItem }">
               <span class="direction" :class="fundDirectionClass(row.direction)">
                 {{ fundDirectionLabel(row.direction) }}
               </span>
@@ -107,12 +107,12 @@ function handleUnavailable(): void {
           <el-table-column prop="tradeType" label="交易类型" min-width="160" show-overflow-tooltip />
           <el-table-column prop="orderNo" label="交易单号" min-width="130" show-overflow-tooltip />
           <el-table-column label="交易金额" min-width="110">
-            <template #default="{ row }: { row: FundFlowView }">
+            <template #default="{ row }: { row: FundFlowItem }">
               <span :class="fundAmountClass(row.amount)">{{ displayText(row.amount) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="交易后余额" min-width="120">
-            <template #default="{ row }: { row: FundFlowView }">
+            <template #default="{ row }: { row: FundFlowItem }">
               {{ displayText(row.balanceAfter) }}
             </template>
           </el-table-column>

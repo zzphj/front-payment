@@ -26,8 +26,8 @@ export interface TargetAccountInfo {
     paymentMemberId: string
 }
 
-/** 交易记录 */
-export interface TransactionRecord {
+/** 交易业务数据（接口返回） */
+export interface TransactionVO {
     /** 金额，后端返回字符串 */
     amount: string
     channel: ChannelInfo

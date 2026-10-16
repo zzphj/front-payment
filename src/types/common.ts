@@ -5,7 +5,8 @@ export interface AjaxResult<T = any> {
   data?: T
 }
 
-export interface PageData<T> {
+/** 分页业务 data，对应 AjaxResult.data */
+export interface PageDataResult<T> {
   current: number
   data: T[]
   page: number
@@ -13,10 +14,6 @@ export interface PageData<T> {
   pages: number
   total: number
   totalRecord: number
-}
-
-export interface PageDataResult<T> extends AjaxResult<PageData<T>> {
-  data: PageData<T>
 }
 
 export interface PageQuery<T> {

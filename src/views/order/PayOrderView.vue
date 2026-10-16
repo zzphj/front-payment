@@ -6,7 +6,7 @@ import {
   transactionStatusClass,
   transactionStatusLabel,
   transactionStatusOptions,
-  type TransactionRecord,
+  type TransactionVO,
 } from '@/types'
 import { displayText, formatTimestamp } from '@/utils/time'
 import { useTransactionPage } from './useTransactionPage'
@@ -52,11 +52,11 @@ function handleExport(): void {
   ElMessage.info('导出接口尚未接入')
 }
 
-function statusClass(row: TransactionRecord): string {
+function statusClass(row: TransactionVO): string {
   return transactionStatusClass(row.status)
 }
 
-function statusLabel(row: TransactionRecord): string {
+function statusLabel(row: TransactionVO): string {
   return transactionStatusLabel(row.status)
 }
 </script>
@@ -116,38 +116,38 @@ function statusLabel(row: TransactionRecord): string {
         <el-table v-loading="isLoading" :data="rows" row-key="transactionId">
           <el-table-column prop="transactionId" label="订单ID" min-width="140" />
           <el-table-column prop="createTime" label="创建时间" min-width="170" sortable>
-            <template #default="{ row }: { row: TransactionRecord }">
+            <template #default="{ row }: { row: TransactionVO }">
               {{ displayText(formatTimestamp(row.createTime)) }}
             </template>
           </el-table-column>
           <el-table-column label="收款机构对象" min-width="160" show-overflow-tooltip>
-            <template #default="{ row }: { row: TransactionRecord }">
+            <template #default="{ row }: { row: TransactionVO }">
               {{ displayText(row.sourceAccount?.institutionName) }}
             </template>
           </el-table-column>
           <el-table-column label="收款客户" min-width="110" show-overflow-tooltip>
-            <template #default="{ row }: { row: TransactionRecord }">
+            <template #default="{ row }: { row: TransactionVO }">
               {{ displayText(row.sourceAccount?.memberName) }}
             </template>
           </el-table-column>
           <el-table-column label="收款客户账户" min-width="150" show-overflow-tooltip>
-            <template #default="{ row }: { row: TransactionRecord }">
+            <template #default="{ row }: { row: TransactionVO }">
               {{ displayText(row.sourceAccount?.accountNo) }}
             </template>
           </el-table-column>
           <el-table-column prop="amount" label="付款金额" min-width="110" sortable />
           <el-table-column prop="executionTime" label="执行时间" min-width="170" sortable>
-            <template #default="{ row }: { row: TransactionRecord }">
+            <template #default="{ row }: { row: TransactionVO }">
               {{ displayText(formatTimestamp(row.executionTime)) }}
             </template>
           </el-table-column>
           <el-table-column label="订单状态" min-width="100">
-            <template #default="{ row }: { row: TransactionRecord }">
+            <template #default="{ row }: { row: TransactionVO }">
               <span :class="statusClass(row)">{{ statusLabel(row) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="执行结果" min-width="220" show-overflow-tooltip>
-            <template #default="{ row }: { row: TransactionRecord }">
+            <template #default="{ row }: { row: TransactionVO }">
               {{ displayText(row.executionResult) }}
             </template>
           </el-table-column>

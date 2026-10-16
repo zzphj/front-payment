@@ -1,10 +1,10 @@
 import { displayText, formatTimestamp } from '@/utils/time'
 
 /**
- * 页面上能看到的展示结构。
+ * 页面专用展示模型（Item）。
  * 接口字段还没对齐，接入时只在加载处做映射，不要把这些名字当成后端协议。
  */
-export interface FundAccountView {
+export interface FundAccountItem {
   accountId: string
   accountNo: string
   createTime: string
@@ -12,7 +12,7 @@ export interface FundAccountView {
   balance: string
 }
 
-export interface FundFlowView {
+export interface FundFlowItem {
   flowNo: string
   accountNo: string
   tradeTime: string
