@@ -51,3 +51,9 @@ export function displayText(value: string | null | undefined): string {
   if (value === null || value === undefined || value.trim() === '') return '-'
   return value
 }
+
+export function displayTime(value: string | null | undefined): string {
+  const formatted = formatTimestamp(value)
+  if (formatted !== '') return formatted
+  return displayText(value)
+}

@@ -2,26 +2,37 @@
 import { Hide, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { computed, ref } from 'vue'
-import { displayText } from '@/utils/time'
+import { displayText, displayTime } from '@/utils/time'
 import {
-  fundAmountClass,
+  usefundPage
+} from './fund'
+import type { LedgerVO } from '@/types'
+import { ledgerBizTypeLabel } from '@/types'
+
+const isAmountHidden = ref(false)
+
+const {
+  account,
+  isLoading,
+  loadError,
+  rows,
+  total,
+  page,
+  pageSize,
+  filter,
+  startTime,
+  endTime,
+  handleSearch,
+  handleReset,
+  handleRefresh,
+  handlePageChange,
+  handleSizeChange,
   fundDirectionClass,
   fundDirectionLabel,
-  showFundTime,
-  type FundAccountItem,
-  type FundFlowItem,
-} from './fund'
+  fundAmountClass,
+} = usefundPage()
 
-const isLoading = ref(false)
-const loadError = ref('')
-const isAmountHidden = ref(false)
-const account = ref<FundAccountItem | null>(null)
-const flows = ref<FundFlowItem[]>([])
 
-const balanceText = computed(() => {
-  if (isAmountHidden.value) return '****'
-  return displayText(account.value?.balance)
-})
 
 function handleUnavailable(): void {
   ElMessage.info('接口尚未接入')
@@ -50,11 +61,11 @@ function handleUnavailable(): void {
           </div>
           <div class="info-item">
             <span class="info-label">创建时间：</span>
-            <span>{{ showFundTime(account?.createTime) }}</span>
+            <span>{{ displayTime(account?.createTime?.toString()) }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">状态：</span>
-            <span>{{ displayText(account?.statusLabel) }}</span>
+            <span>{{ displayText(account?.status) }}</span>
           </div>
         </div>
       </section>
@@ -63,19 +74,15 @@ function handleUnavailable(): void {
         <div class="balance-main">
           <div class="balance-label">
             <span>总余额</span>
-            <button
-              type="button"
-              class="eye"
-              :aria-label="isAmountHidden ? '显示余额' : '隐藏余额'"
-              @click="isAmountHidden = !isAmountHidden"
-            >
+            <button type="button" class="eye" :aria-label="isAmountHidden ? '显示余额' : '隐藏余额'"
+              @click="isAmountHidden = !isAmountHidden">
               <el-icon>
                 <Hide v-if="isAmountHidden" />
                 <View v-else />
               </el-icon>
             </button>
           </div>
-          <strong class="balance-value">{{ balanceText }}</strong>
+          <strong class="balance-value">{{ displayText(account?.balance) }}</strong>
         </div>
         <div class="balance-actions">
           <el-button type="primary" @click="handleUnavailable">充值</el-button>
@@ -89,30 +96,34 @@ function handleUnavailable(): void {
           <button type="button" class="more" @click="handleUnavailable">更多 &gt;</button>
         </header>
 
-        <el-table v-loading="isLoading" :data="flows" row-key="flowNo" border>
-          <el-table-column prop="flowNo" label="流水号" min-width="120" />
+        <el-table v-loading="isLoading" :data="rows" row-key="flowNo" border>
+          <el-table-column prop="ledgerId" label="流水号" min-width="120" />
           <el-table-column prop="accountNo" label="交易账户" min-width="150" show-overflow-tooltip />
           <el-table-column label="交易时间" min-width="190">
-            <template #default="{ row }: { row: FundFlowItem }">
-              {{ showFundTime(row.tradeTime) }}
+            <template #default="{ row }: { row: LedgerVO }">
+              {{ displayTime(row.createTime?.toString()) }}
             </template>
           </el-table-column>
           <el-table-column label="收支类型" min-width="100">
-            <template #default="{ row }: { row: FundFlowItem }">
-              <span class="direction" :class="fundDirectionClass(row.direction)">
-                {{ fundDirectionLabel(row.direction) }}
+            <template #default="{ row }: { row: LedgerVO }">
+              <span class="direction" :class="fundDirectionClass(row.incomeExpenseType)">
+                {{ fundDirectionLabel(row.incomeExpenseType) }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="tradeType" label="交易类型" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="orderNo" label="交易单号" min-width="130" show-overflow-tooltip />
+          <el-table-column prop="bizType" label="交易类型" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }: { row: LedgerVO }">
+              <span>{{ ledgerBizTypeLabel(row.bizType) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="bizId" label="交易单号" min-width="130" show-overflow-tooltip />
           <el-table-column label="交易金额" min-width="110">
-            <template #default="{ row }: { row: FundFlowItem }">
+            <template #default="{ row }: { row: LedgerVO }">
               <span :class="fundAmountClass(row.amount)">{{ displayText(row.amount) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="交易后余额" min-width="120">
-            <template #default="{ row }: { row: FundFlowItem }">
+            <template #default="{ row }: { row: LedgerVO }">
               {{ displayText(row.balanceAfter) }}
             </template>
           </el-table-column>

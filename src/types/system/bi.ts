@@ -1,4 +1,5 @@
 import type { AjaxResult } from '../common'
+import type { FundDirection } from '../enums'
 
 export interface OpsHomeTotalResp {
   failedAmount: string
@@ -16,7 +17,7 @@ export interface OpsHomeTotalResp {
 export interface OpsHomeTotalSumResp extends AjaxResult<{
   merchantCredit: OpsHomeTotalResp
   merchantDebit: OpsHomeTotalResp
-}> {}
+}> { }
 
 export interface OpsHomeDetailRow {
   account: {
@@ -50,6 +51,6 @@ export interface OpsHomeDetailQuery {
   params: {
     startTime: number
     endTime: number
-    fundDirection: 'CREDIT' | 'DEBIT'
+    fundDirection: FundDirection
   }
 }
